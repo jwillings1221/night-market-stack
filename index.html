@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>夜市叠叠高 v0.1</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1a1020; overflow: hidden;
+    font-family: system-ui, -apple-system, "Microsoft YaHei", sans-serif; }
+  #wrap { position: relative; width: 100vw; height: 100vh;
+    display: flex; align-items: center; justify-content: center; }
+  canvas { display: block; background: #2a1830; touch-action: none; }
+  #hud { position: absolute; top: 16px; left: 0; right: 0; text-align: center;
+    color: #ffd166; font-size: 18px; pointer-events: none; text-shadow: 0 2px 8px #000; }
+  #overlay { position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; background: rgba(20, 10, 25, .78);
+    color: #fff; text-align: center; }
+  #overlay.hidden { display: none; }
+  button { margin-top: 16px; padding: 12px 28px; font-size: 18px; border: 0;
+    border-radius: 999px; background: #ffd166; color: #2a1830; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="360" height="640"></canvas>
+  <div id="hud"></div>
+  <div id="overlay">
+    <h1>夜市叠叠高</h1>
+    <p>点击屏幕，让小吃落下<br>叠得越高，分越高</p>
+    <button id="start">开始</button>
+  </div>
+</div>
+<script>
+// ===== 1. 配置：想调手感，先改这里 =====
+const W = 360, H = 640;
+const CONFIG = {
+  blockH: 28,        // 每块高度
+  startW: 120,       // 第一块宽度
+  startSpeed: 120,   // 初始左右移动速度（像素/秒）
+  speedAdd: 4,       // 每叠一块加速
+  maxSpeed: 360,     // 速度上限
+  perfect: 8,        // 中心偏差 <= 8px 算 perfect
+  minOverlap: 10,    // 重叠 < 10px 直接失败
+  gap: 80,           // 当前块与牌堆的间距
+};
+
+// ===== 2. 状态 =====
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const hud = document.getElementById('hud');
+const overlay = document.getElementById('overlay');
+const startBtn = document.getElementById('start');
+const wrap = document.getElementById('wrap');
+
+let state = null;
+
+function loadBest() {
+  try { return Number(localStorage.getItem('best') || 0); } catch (e) { return 0; }
+}
+function saveBest(v) {
+  try { localStorage.setItem('best', String(v)); } catch (e) {}
+}
+
+function reset() {
+  const first = { x: (W - CONFIG.startW) / 2, y: H - 60, w: CONFIG.startW };
+  state = {
+    mode: 'playing',   // playing | over
+    blocks: [first],
+    current: {
+      x: Math.random() * (W - CONFIG.startW),
+      y: first.y - CONFIG.blockH - CONFIG.gap,
+      w: CONFIG.startW,
+      dir: Math.random() < 0.5 ? 1 : -1,
+    },
+    speed: CONFIG.startSpeed,
+    score: 0,
+    combo: 0,
+    lastDropAt: 0,
+    best: loadBest(),
+    cameraY: 0,
+  };
+  updateHud();
+}
+
+// ===== 3. 输入 =====
+wrap.addEventListener('pointerdown', () => {
+  // 整个屏幕都能落块，但开始/重开遮罩上的点击不能穿透到游戏。
+  if (!state || state.mode !== 'playing' || !overlay.classList.contains('hidden')) return;
+  const now = performance.now();
+  if (now - state.lastDropAt < 120) return; // 防移动端双击一次消费两块
+  state.lastDropAt = now;
+  drop();
+});
+
+startBtn.addEventListener('click', () => {
+  overlay.classList.add('hidden');
+  reset();
+});
+
+// ===== 4. 核心逻辑 =====
+function drop() {
+  const cur = state.current;
+  const top = state.blocks[state.blocks.length - 1];
+
+  // 两块的重叠区间
+  const left = Math.max(cur.x, top.x);
+  const right = Math.min(cur.x + cur.w, top.x + top.w);
+  const overlap = right - left;
+
+  if (overlap < CONFIG.minOverlap) {
+    return gameOver();
+  }
+
+  // 新块就是重叠部分（v0.1 先做“切割”）
+  const newBlock = { x: left, y: top.y - CONFIG.blockH, w: overlap };
+  state.blocks.push(newBlock);
+
+  // perfect：两块中心点距离
+  const curCenter = cur.x + cur.w / 2;
+  const topCenter = top.x + top.w / 2;
+  const perfect = Math.abs(curCenter - topCenter) <= CONFIG.perfect;
+
+  if (perfect) {
+    state.combo += 1;
+    // 倍率 1 + combo×0.1，等价于整数分，避免浮点误差被 HUD 向下取整。
+    state.score += Math.min(30, 10 + state.combo);
+  } else {
+    state.combo = 0;
+    state.score += 5;
+  }
+
+  // 镜头跟随 + 加速
+  state.cameraY = Math.max(0, (state.blocks.length - 8) * CONFIG.blockH);
+  state.speed = Math.min(CONFIG.maxSpeed, state.speed + CONFIG.speedAdd);
+
+  // 下一块：宽度跟当前顶层一致
+  state.current = {
+    x: Math.random() * (W - newBlock.w),
+    y: newBlock.y - CONFIG.blockH - CONFIG.gap,
+    w: newBlock.w,
+    dir: Math.random() < 0.5 ? 1 : -1,
+  };
+
+  updateHud();
+}
+
+function gameOver() {
+  state.mode = 'over';
+  if (state.score > state.best) {
+    state.best = state.score;
+    saveBest(state.best);
+  }
+  overlay.classList.remove('hidden');
+  overlay.innerHTML =
+    '<h1>游戏结束</h1>' +
+    '<p>分数 ' + Math.floor(state.score) + ' · 最高 ' + Math.floor(state.best) + '</p>' +
+    '<button id="again">再来一局</button>';
+  document.getElementById('again').onclick = () => {
+    overlay.classList.add('hidden');
+    reset();
+  };
+  updateHud();
+}
+
+function updateHud() {
+  if (!state) return;
+  hud.textContent = '分数 ' + Math.floor(state.score) +
+    ' · 连击 ' + state.combo +
+    ' · 最高 ' + Math.floor(state.best);
+}
+
+// ===== 5. 主循环 =====
+let last = 0;
+function loop(t) {
+  const dt = Math.min(0.05, (t - last) / 1000 || 0);
+  last = t;
+
+  if (state && state.mode === 'playing') {
+    const cur = state.current;
+    cur.x += cur.dir * state.speed * dt;
+    if (cur.x < 0) { cur.x = 0; cur.dir = 1; }
+    if (cur.x + cur.w > W) { cur.x = W - cur.w; cur.dir = -1; }
+  }
+
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  if (!state) return;
+
+  ctx.save();
+  ctx.translate(0, state.cameraY);   // 镜头跟随牌堆向上
+
+  // 地面
+  ctx.fillStyle = '#3a2340';
+  ctx.fillRect(0, H - 32, W, 32);
+
+  // 已叠好的块
+  for (const b of state.blocks) {
+    ctx.fillStyle = '#ffb703';
+    ctx.fillRect(b.x, b.y, b.w, CONFIG.blockH);
+    ctx.strokeStyle = '#7a3e00';
+    ctx.strokeRect(b.x, b.y, b.w, CONFIG.blockH);
+  }
+
+  // 当前块
+  if (state.mode === 'playing') {
+    const cur = state.current;
+    ctx.fillStyle = '#90e0ef';
+    ctx.fillRect(cur.x, cur.y, cur.w, CONFIG.blockH);
+    ctx.strokeStyle = '#0077b6';
+    ctx.strokeRect(cur.x, cur.y, cur.w, CONFIG.blockH);
+  }
+
+  ctx.restore();
+}
+
+// ===== 6. 自适应缩放（保持 9:16，不变形） =====
+function fitCanvas() {
+  const scale = Math.min(window.innerWidth / W, window.innerHeight / H);
+  canvas.style.width = (W * scale) + 'px';
+  canvas.style.height = (H * scale) + 'px';
+}
+window.addEventListener('resize', fitCanvas);
+fitCanvas();
+
+// ===== 7. 启动 =====
+reset();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
