@@ -2,23 +2,36 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>夜市叠叠高 v0.2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>夜市叠叠高 v0.3</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #1a1020; overflow: hidden;
+  html, body { position: fixed; inset: 0; margin: 0; height: 100%; background: #071225;
+    overflow: hidden; overscroll-behavior: none; touch-action: none;
     font-family: system-ui, -apple-system, "Microsoft YaHei", sans-serif;
-    user-select: none; }
-  #wrap { position: relative; width: 100vw; height: 100vh;
-    display: flex; align-items: center; justify-content: center; }
+    user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  #wrap { position: relative; box-sizing: border-box; width: 100vw; height: 100vh;
+    height: 100dvh; padding: max(6px, env(safe-area-inset-top))
+      max(6px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom))
+      max(6px, env(safe-area-inset-left));
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 45%, #18234a 0%, #070b1c 72%);
+    touch-action: none; }
   #stage { position: relative; width: 360px; height: 640px; flex: none;
-    transform: translate3d(0, 0, 0); will-change: transform; }
+    overflow: hidden; border-radius: 14px; box-shadow: 0 0 0 1px rgba(112, 230, 255, .1),
+      0 20px 60px rgba(0, 0, 0, .45), 0 0 34px rgba(88, 85, 210, .14);
+    background: #081329; transform: translate3d(0, 0, 0); will-change: transform;
+    touch-action: none; }
   #stage canvas { position: absolute; inset: 0; display: block;
-    width: 100%; height: 100%; background: #2a1830; touch-action: none; }
+    width: 100%; height: 100%; background: transparent; touch-action: none; }
   #game { z-index: 1; }
   #stage #fx { z-index: 2; pointer-events: none; background: transparent; }
   #hud { position: absolute; z-index: 3; top: 12px; left: 64px; right: 64px;
-    text-align: center; color: #ffd166; font-size: 18px; pointer-events: none;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    color: #e7ddbd; font-size: 14px; pointer-events: none;
     text-shadow: 0 2px 8px #000; white-space: nowrap; }
+  #comboTag { color: #ffd166; font-size: 26px; font-weight: 900;
+    letter-spacing: .5px; text-shadow: 0 0 12px rgba(255, 209, 102, .65),
+      0 2px 8px #000; }
   #flash { position: absolute; z-index: 4; inset: 0; opacity: 0;
     pointer-events: none; background: #fff; }
   #flash.danger { background: #ff3d55; }
@@ -32,19 +45,34 @@
     white-space: nowrap; animation: float-up 700ms ease-out forwards; }
   .float-label.normal { font-size: 20px; color: #bff6ff;
     text-shadow: 0 2px 0 #06445a, 0 0 10px #90e0ef; }
-  #mute { position: absolute; z-index: 20; top: 10px; right: 10px;
+  #mute { position: absolute; z-index: 20;
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
     width: 44px; height: 44px; margin: 0; padding: 0; border-radius: 50%;
     border: 1px solid rgba(255, 255, 255, .28);
     background: rgba(25, 12, 31, .78); color: #fff; font-size: 20px;
     line-height: 1; box-shadow: 0 4px 14px rgba(0, 0, 0, .32);
     cursor: pointer; backdrop-filter: blur(8px); }
   #mute[aria-pressed="true"] { color: #ff9baa; }
-  #overlay { position: absolute; inset: 0; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; background: rgba(20, 10, 25, .78);
+  #overlay { position: absolute; inset: 0; box-sizing: border-box;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 40px 28px; overflow: hidden;
+    background: radial-gradient(circle at 50% 38%, rgba(75, 41, 103, .87),
+      rgba(6, 11, 28, .95) 64%);
     color: #fff; text-align: center; z-index: 10; }
+  #overlay::before { content: ""; position: absolute; inset: 8% 5%; pointer-events: none;
+    background: radial-gradient(circle at 14% 18%, rgba(255, 87, 82, .22), transparent 24%),
+      radial-gradient(circle at 88% 22%, rgba(86, 220, 255, .16), transparent 26%);
+    filter: blur(8px); }
+  #overlay > * { position: relative; }
+  #overlay h1 { margin: 0; font-size: clamp(34px, 9vw, 48px); letter-spacing: .08em;
+    color: #ffe59a; text-shadow: 0 0 22px rgba(255, 189, 81, .48), 0 4px 0 #5a2b16; }
+  #overlay p { margin: 22px 0 2px; color: #f2e9dc; font-size: 17px; line-height: 1.8; }
   #overlay.hidden { display: none; }
   button { margin-top: 16px; padding: 12px 28px; font-size: 18px; border: 0;
-    border-radius: 999px; background: #ffd166; color: #2a1830; font-weight: 700; }
+    border-radius: 999px; background: linear-gradient(135deg, #ffe28a, #ffb85c);
+    color: #2a1830; font-weight: 800; box-shadow: 0 8px 24px rgba(255, 173, 76, .3);
+    cursor: pointer; touch-action: manipulation; }
   #stage.shake-light { animation: shake-light 120ms ease-out; }
   #stage.shake-heavy { animation: shake-heavy 220ms ease-out; }
   @keyframes flash {
@@ -82,7 +110,11 @@
   <div id="stage">
     <canvas id="game" width="360" height="640"></canvas>
     <canvas id="fx" width="360" height="640"></canvas>
-    <div id="hud"></div>
+    <div id="hud">
+      <span id="scoreTag">分数 0</span>
+      <span id="comboTag">连击 0</span>
+      <span id="bestTag">最高 0</span>
+    </div>
     <div id="flash"></div>
     <div id="floats" aria-live="polite"></div>
   </div>
@@ -120,6 +152,9 @@ const CONFIG = {
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const hud = document.getElementById('hud');
+const scoreTag = document.getElementById('scoreTag');
+const comboTag = document.getElementById('comboTag');
+const bestTag = document.getElementById('bestTag');
 const overlay = document.getElementById('overlay');
 const startBtn = document.getElementById('start');
 const wrap = document.getElementById('wrap');
@@ -134,6 +169,7 @@ let state = null;
 let particles = [];
 let flashTimer = 0;
 let shakeTimer = 0;
+let pixelRatio = 1;
 
 // 视觉和音频使用独立随机流，绝不消耗玩法的 Math.random()。
 let fxSeed = (Date.now() ^ 0x9e3779b9) >>> 0;
@@ -377,7 +413,13 @@ function screenPoint(blockOrX, y) {
 
 function reset() {
   clearEffects();
-  const first = { x: (W - CONFIG.startW) / 2, y: H - 60, w: CONFIG.startW };
+  const first = {
+    x: (W - CONFIG.startW) / 2,
+    y: H - 60,
+    w: CONFIG.startW,
+    h: CONFIG.blockH,
+    kind: snackKindForIndex(0),
+  };
   state = {
     mode: 'playing',   // playing | over
     blocks: [first],
@@ -385,6 +427,8 @@ function reset() {
       x: Math.random() * (W - CONFIG.startW),
       y: first.y - CONFIG.blockH - CONFIG.gap,
       w: CONFIG.startW,
+      h: CONFIG.blockH,
+      kind: snackKindForIndex(1),
       dir: Math.random() < 0.5 ? 1 : -1,
     },
     speed: CONFIG.startSpeed,
@@ -440,7 +484,13 @@ function drop() {
   }
 
   // 新块就是重叠部分（v0.1 先做“切割”）
-  const newBlock = { x: left, y: top.y - CONFIG.blockH, w: overlap };
+  const newBlock = {
+    x: left,
+    y: top.y - CONFIG.blockH,
+    w: overlap,
+    h: CONFIG.blockH,
+    kind: snackKindForIndex(state.blocks.length),
+  };
   state.blocks.push(newBlock);
 
   // perfect：两块中心点距离
@@ -490,6 +540,8 @@ function drop() {
     x: Math.random() * (W - newBlock.w),
     y: newBlock.y - CONFIG.blockH - CONFIG.gap,
     w: newBlock.w,
+    h: CONFIG.blockH,
+    kind: snackKindForIndex(state.blocks.length),
     dir: Math.random() < 0.5 ? 1 : -1,
   };
 
@@ -529,9 +581,305 @@ function gameOver() {
 
 function updateHud() {
   if (!state) return;
-  hud.textContent = '分数 ' + Math.floor(state.score) +
-    ' · 连击 ' + state.combo +
-    ' · 最高 ' + Math.floor(state.best);
+  scoreTag.textContent = '分数 ' + Math.floor(state.score);
+  comboTag.textContent = '连击 ' + state.combo;
+  bestTag.textContent = '最高 ' + Math.floor(state.best);
+}
+
+const SNACK_KINDS = ['baozi', 'skewer', 'milkTea'];
+const STARS = Array.from({ length: 34 }, (_, i) => ({
+  x: (i * 83 + 19) % W,
+  y: 18 + ((i * 47 + i * i * 7) % 270),
+  r: i % 4 === 0 ? 1.5 : 0.8,
+  a: 0.25 + (i % 5) * 0.09,
+}));
+
+function snackKindForIndex(index) {
+  return SNACK_KINDS[index % SNACK_KINDS.length];
+}
+
+function roundRectPath(c, x, y, w, h, r) {
+  const radius = Math.min(r, w / 2, h / 2);
+  c.beginPath();
+  c.moveTo(x + radius, y);
+  c.lineTo(x + w - radius, y);
+  c.quadraticCurveTo(x + w, y, x + w, y + radius);
+  c.lineTo(x + w, y + h - radius);
+  c.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+  c.lineTo(x + radius, y + h);
+  c.quadraticCurveTo(x, y + h, x, y + h - radius);
+  c.lineTo(x, y + radius);
+  c.quadraticCurveTo(x, y, x + radius, y);
+  c.closePath();
+}
+
+function drawLantern(c, x, y, phase, time) {
+  const swing = Math.sin(time / 900 + phase) * 0.075;
+  c.save();
+  c.translate(x, y);
+  c.rotate(swing);
+
+  const glow = c.createRadialGradient(0, 0, 3, 0, 0, 66);
+  glow.addColorStop(0, 'rgba(255, 199, 98, .28)');
+  glow.addColorStop(1, 'rgba(255, 143, 72, 0)');
+  c.fillStyle = glow;
+  c.fillRect(-68, -68, 136, 136);
+
+  c.strokeStyle = 'rgba(255, 231, 180, .72)';
+  c.lineWidth = 1.5;
+  c.beginPath();
+  c.moveTo(0, -58);
+  c.lineTo(0, -20);
+  c.stroke();
+
+  c.fillStyle = '#f0b43c';
+  c.fillRect(-12, -21, 24, 4);
+  c.fillRect(-11, 17, 22, 4);
+
+  const body = c.createLinearGradient(-18, 0, 18, 0);
+  body.addColorStop(0, '#8f1f32');
+  body.addColorStop(0.45, '#ff5b49');
+  body.addColorStop(1, '#991f3a');
+  c.fillStyle = body;
+  c.strokeStyle = '#ffd078';
+  c.lineWidth = 1.5;
+  c.beginPath();
+  c.moveTo(-18, -18);
+  c.quadraticCurveTo(-25, 0, -18, 18);
+  c.quadraticCurveTo(0, 25, 18, 18);
+  c.quadraticCurveTo(25, 0, 18, -18);
+  c.quadraticCurveTo(0, -25, -18, -18);
+  c.closePath();
+  c.fill();
+  c.stroke();
+
+  c.strokeStyle = 'rgba(255, 220, 139, .45)';
+  c.lineWidth = 1;
+  for (let offset = -11; offset <= 11; offset += 11) {
+    c.beginPath();
+    c.moveTo(offset, -18);
+    c.quadraticCurveTo(offset * 1.25, 0, offset, 18);
+    c.stroke();
+  }
+
+  c.fillStyle = '#ffe8a6';
+  c.font = '700 15px "Microsoft YaHei", sans-serif';
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillText(phase > 0 ? '市' : '夜', 0, 1);
+
+  c.strokeStyle = '#e8a63a';
+  c.beginPath();
+  c.moveTo(0, 22);
+  c.lineTo(0, 31);
+  c.moveTo(-4, 31);
+  c.lineTo(0, 40);
+  c.lineTo(4, 31);
+  c.stroke();
+  c.restore();
+}
+
+function drawNightMarket(time) {
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#07132d');
+  bg.addColorStop(0.52, '#21133d');
+  bg.addColorStop(1, '#3a1639');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  for (const star of STARS) {
+    ctx.globalAlpha = star.a * (0.78 + 0.22 * Math.sin(time / 700 + star.x));
+    ctx.fillStyle = '#e8f7ff';
+    ctx.beginPath();
+    ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  const moonGlow = ctx.createRadialGradient(292, 106, 8, 292, 106, 70);
+  moonGlow.addColorStop(0, 'rgba(255, 242, 178, .32)');
+  moonGlow.addColorStop(1, 'rgba(255, 242, 178, 0)');
+  ctx.fillStyle = moonGlow;
+  ctx.fillRect(210, 24, 164, 164);
+  ctx.fillStyle = '#ffe89b';
+  ctx.beginPath();
+  ctx.arc(292, 106, 29, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(7, 11, 31, .82)';
+  const buildings = [
+    [0, 300, 66, 210],
+    [52, 268, 48, 240],
+    [102, 322, 74, 188],
+    [260, 286, 58, 224],
+    [307, 326, 53, 184],
+  ];
+  for (const [x, y, w, h] of buildings) {
+    ctx.fillRect(x, y, w, h);
+  }
+
+  ctx.strokeStyle = 'rgba(99, 222, 255, .18)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(16, 373, 65, 118);
+  ctx.strokeRect(279, 353, 65, 138);
+
+  ctx.fillStyle = 'rgba(92, 224, 255, .62)';
+  ctx.font = '700 17px "Microsoft YaHei", sans-serif';
+  ctx.save();
+  ctx.translate(36, 430);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('夜 市', 0, 0);
+  ctx.restore();
+
+  ctx.fillStyle = 'rgba(255, 153, 92, .56)';
+  ctx.font = '700 15px "Microsoft YaHei", sans-serif';
+  ctx.save();
+  ctx.translate(326, 435);
+  ctx.rotate(Math.PI / 2);
+  ctx.fillText('小 吃', 0, 0);
+  ctx.restore();
+
+  ctx.fillStyle = 'rgba(10, 12, 29, .92)';
+  ctx.fillRect(0, 604, W, 36);
+  const floorGlow = ctx.createLinearGradient(0, 600, 0, 626);
+  floorGlow.addColorStop(0, 'rgba(255, 112, 94, .38)');
+  floorGlow.addColorStop(1, 'rgba(255, 112, 94, 0)');
+  ctx.fillStyle = floorGlow;
+  ctx.fillRect(0, 600, W, 26);
+
+  drawLantern(ctx, 31, 170, 0, time);
+  drawLantern(ctx, 329, 204, Math.PI, time);
+
+  const fog = ctx.createLinearGradient(0, 500, 0, 640);
+  fog.addColorStop(0, 'rgba(66, 84, 128, 0)');
+  fog.addColorStop(1, 'rgba(89, 112, 151, .12)');
+  ctx.fillStyle = fog;
+  ctx.fillRect(0, 500, W, 140);
+}
+
+function drawBaozi(c, block, moving) {
+  const cx = block.x + block.w / 2;
+  const cy = block.y + block.h / 2;
+  const bodyW = Math.max(8, block.w - 6);
+  const bodyH = Math.max(10, Math.min(22, block.h - 4));
+  const left = cx - bodyW / 2;
+  const top = cy - bodyH / 2;
+  const fill = '#f7dfb0';
+
+  c.save();
+  c.shadowColor = moving ? 'rgba(255, 225, 150, .75)' : 'rgba(0, 0, 0, .45)';
+  c.shadowBlur = moving ? 12 : 5;
+  c.fillStyle = fill;
+  c.strokeStyle = moving ? '#ffe694' : '#c58a49';
+  c.lineWidth = moving ? 2 : 1.5;
+  c.beginPath();
+  c.moveTo(left, cy + bodyH * 0.35);
+  c.quadraticCurveTo(left + bodyW * 0.16, top, cx, top);
+  c.quadraticCurveTo(left + bodyW * 0.84, top, left + bodyW, cy + bodyH * 0.35);
+  c.quadraticCurveTo(cx, cy + bodyH * 0.72, left, cy + bodyH * 0.35);
+  c.closePath();
+  c.fill();
+  c.stroke();
+  c.shadowBlur = 0;
+
+  c.strokeStyle = 'rgba(143, 88, 40, .7)';
+  c.lineWidth = 1;
+  for (let i = -2; i <= 2; i++) {
+    c.beginPath();
+    c.moveTo(cx, top + 3);
+    c.lineTo(cx + i * Math.min(9, bodyW * 0.12), top + Math.min(10, bodyH * 0.45));
+    c.stroke();
+  }
+  c.fillStyle = '#ff6d72';
+  c.beginPath();
+  c.arc(cx, top + 4, Math.min(2.5, bodyW * 0.04), 0, Math.PI * 2);
+  c.fill();
+  c.restore();
+}
+
+function drawSkewer(c, block, moving) {
+  const cx = block.x + block.w / 2;
+  const cy = block.y + block.h / 2;
+  const half = Math.max(5, block.w / 2 - 3);
+  const piece = Math.max(4, Math.min(9, block.w / 8));
+  const count = Math.max(2, Math.min(5, Math.floor(block.w / 22)));
+
+  c.save();
+  c.shadowColor = moving ? 'rgba(255, 160, 92, .7)' : 'rgba(0, 0, 0, .45)';
+  c.shadowBlur = moving ? 10 : 4;
+  c.strokeStyle = '#e2b264';
+  c.lineWidth = Math.max(1.5, Math.min(3, block.w / 40));
+  c.beginPath();
+  c.moveTo(cx - half, cy + 5);
+  c.lineTo(cx + half, cy + 5);
+  c.stroke();
+  c.shadowBlur = 0;
+
+  for (let i = 0; i < count; i++) {
+    const px = cx - half + (i + 0.5) * (half * 2 / count);
+    c.fillStyle = i % 2 === 0 ? '#e94b42' : '#f28c3c';
+    c.strokeStyle = moving ? '#ffe3a1' : '#7e2c2a';
+    c.lineWidth = 1;
+    roundRectPath(c, px - piece / 2, cy - piece / 2, piece, piece + 2, 2.5);
+    c.fill();
+    c.stroke();
+    c.fillStyle = 'rgba(255, 226, 151, .65)';
+    c.fillRect(px - piece * 0.2, cy - piece * 0.28, Math.max(1, piece * 0.35), 1.5);
+  }
+  c.restore();
+}
+
+function drawMilkTea(c, block, moving) {
+  const cx = block.x + block.w / 2;
+  const cy = block.y + block.h / 2;
+  const cupW = Math.max(9, Math.min(block.w * 0.86, 90));
+  const cupH = Math.max(12, Math.min(22, block.h - 5));
+  const topY = cy - cupH / 2;
+  const bottomY = cy + cupH / 2;
+
+  c.save();
+  c.shadowColor = moving ? 'rgba(126, 226, 255, .68)' : 'rgba(0, 0, 0, .45)';
+  c.shadowBlur = moving ? 11 : 4;
+  c.fillStyle = 'rgba(238, 205, 156, .9)';
+  c.strokeStyle = moving ? '#a7f1ff' : '#8d6c52';
+  c.lineWidth = moving ? 2 : 1.5;
+  c.beginPath();
+  c.moveTo(cx - cupW * 0.42, topY);
+  c.lineTo(cx + cupW * 0.42, topY);
+  c.lineTo(cx + cupW * 0.31, bottomY);
+  c.lineTo(cx - cupW * 0.31, bottomY);
+  c.closePath();
+  c.fill();
+  c.stroke();
+  c.shadowBlur = 0;
+
+  c.fillStyle = '#61381f';
+  const bobaCount = Math.max(2, Math.min(6, Math.floor(cupW / 10)));
+  for (let i = 0; i < bobaCount; i++) {
+    c.beginPath();
+    c.arc(
+      cx - cupW * 0.28 + i * (cupW * 0.56 / Math.max(1, bobaCount - 1)),
+      bottomY - 3,
+      1.8,
+      0,
+      Math.PI * 2,
+    );
+    c.fill();
+  }
+
+  c.strokeStyle = '#ff9fbc';
+  c.lineWidth = Math.max(2, Math.min(4, cupW / 18));
+  c.beginPath();
+  c.moveTo(cx + cupW * 0.1, topY + 1);
+  c.lineTo(cx + cupW * 0.28, topY - 8);
+  c.stroke();
+  c.restore();
+}
+
+function drawSnack(c, block, moving) {
+  if (block.kind === 'skewer') drawSkewer(c, block, moving);
+  else if (block.kind === 'milkTea') drawMilkTea(c, block, moving);
+  else drawBaozi(c, block, moving);
 }
 
 // ===== 5. 主循环 =====
@@ -547,38 +895,28 @@ function loop(t) {
     if (cur.x + cur.w > W) { cur.x = W - cur.w; cur.dir = -1; }
   }
 
-  draw();
+  draw(t);
   updateParticles(dt);
   drawParticles();
   requestAnimationFrame(loop);
 }
 
-function draw() {
+function draw(time) {
   ctx.clearRect(0, 0, W, H);
+  drawNightMarket(time);
   if (!state) return;
 
   ctx.save();
   ctx.translate(0, state.cameraY);   // 镜头跟随牌堆向上
 
-  // 地面
-  ctx.fillStyle = '#3a2340';
-  ctx.fillRect(0, H - 32, W, 32);
-
   // 已叠好的块
   for (const b of state.blocks) {
-    ctx.fillStyle = '#ffb703';
-    ctx.fillRect(b.x, b.y, b.w, CONFIG.blockH);
-    ctx.strokeStyle = '#7a3e00';
-    ctx.strokeRect(b.x, b.y, b.w, CONFIG.blockH);
+    drawSnack(ctx, b, false);
   }
 
   // 当前块
   if (state.mode === 'playing') {
-    const cur = state.current;
-    ctx.fillStyle = '#90e0ef';
-    ctx.fillRect(cur.x, cur.y, cur.w, CONFIG.blockH);
-    ctx.strokeStyle = '#0077b6';
-    ctx.strokeRect(cur.x, cur.y, cur.w, CONFIG.blockH);
+    drawSnack(ctx, state.current, true);
   }
 
   ctx.restore();
@@ -586,9 +924,29 @@ function draw() {
 
 // ===== 6. 自适应缩放（保持 9:16，不变形） =====
 function fitCanvas() {
-  const scale = Math.min(window.innerWidth / W, window.innerHeight / H);
+  const wrapStyle = getComputedStyle(wrap);
+  const safeWidth =
+    wrap.clientWidth -
+    parseFloat(wrapStyle.paddingLeft) -
+    parseFloat(wrapStyle.paddingRight);
+  const safeHeight =
+    wrap.clientHeight -
+    parseFloat(wrapStyle.paddingTop) -
+    parseFloat(wrapStyle.paddingBottom);
+  const scale = Math.max(0.1, Math.min(safeWidth / W, safeHeight / H));
   stage.style.width = (W * scale) + 'px';
   stage.style.height = (H * scale) + 'px';
+  pixelRatio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  const pixelWidth = Math.round(W * pixelRatio);
+  const pixelHeight = Math.round(H * pixelRatio);
+  for (const surface of [canvas, fxCanvas]) {
+    if (surface.width !== pixelWidth || surface.height !== pixelHeight) {
+      surface.width = pixelWidth;
+      surface.height = pixelHeight;
+    }
+  }
+  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  fxCtx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 }
 window.addEventListener('resize', fitCanvas);
 fitCanvas();
