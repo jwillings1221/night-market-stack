@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>夜市叠叠高 v0.3.1</title>
+<link rel="icon" href="data:,">
+<title>夜市叠叠高 v0.4</title>
 <style>
   html, body { position: fixed; inset: 0; margin: 0; height: 100%; background: #071225;
     overflow: hidden; overscroll-behavior: none; touch-action: none;
@@ -125,6 +126,7 @@
     <button id="start">开始</button>
   </div>
 </div>
+<script src="./logic.js"></script>
 <script>
 // ===== 1. 配置：想调手感，先改这里 =====
 const W = 360, H = 640;
@@ -149,6 +151,7 @@ const CONFIG = {
 };
 
 // ===== 2. 状态 =====
+const GameLogic = window.NightMarketLogic;
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const hud = document.getElementById('hud');
@@ -413,31 +416,14 @@ function screenPoint(blockOrX, y) {
 
 function reset() {
   clearEffects();
-  const first = {
-    x: (W - CONFIG.startW) / 2,
-    y: H - 60,
-    w: CONFIG.startW,
-    h: CONFIG.blockH,
-    kind: snackKindForIndex(0),
-  };
-  state = {
-    mode: 'playing',   // playing | over
-    blocks: [first],
-    current: {
-      x: Math.random() * (W - CONFIG.startW),
-      y: first.y - CONFIG.blockH - CONFIG.gap,
-      w: CONFIG.startW,
-      h: CONFIG.blockH,
-      kind: snackKindForIndex(1),
-      dir: Math.random() < 0.5 ? 1 : -1,
-    },
-    speed: CONFIG.startSpeed,
-    score: 0,
-    combo: 0,
-    lastDropAt: 0,
+  state = GameLogic.createRoundState({
+    width: W,
+    height: H,
+    config: CONFIG,
     best: loadBest(),
-    cameraY: 0,
-  };
+    random: Math.random,
+    kindForIndex: snackKindForIndex,
+  });
   updateHud();
 }
 
@@ -473,39 +459,26 @@ muteBtn.addEventListener('click', (event) => {
 function drop() {
   const cur = state.current;
   const top = state.blocks[state.blocks.length - 1];
+  const judgement = GameLogic.judge(cur, top, CONFIG);
 
-  // 两块的重叠区间
-  const left = Math.max(cur.x, top.x);
-  const right = Math.min(cur.x + cur.w, top.x + top.w);
-  const overlap = right - left;
-
-  if (overlap < CONFIG.minOverlap) {
+  if (judgement.status === 'fail') {
     return gameOver();
   }
 
   // 新块就是重叠部分，保留原版切割规则。
   const newBlock = {
-    x: left,
+    x: judgement.left,
     y: top.y - CONFIG.blockH,
-    w: overlap,
+    w: judgement.width,
     h: CONFIG.blockH,
     kind: snackKindForIndex(state.blocks.length),
   };
   state.blocks.push(newBlock);
 
-  // perfect：两块中心点距离
-  const curCenter = cur.x + cur.w / 2;
-  const topCenter = top.x + top.w / 2;
-  const perfect = Math.abs(curCenter - topCenter) <= CONFIG.perfect;
-
-  if (perfect) {
-    state.combo += 1;
-    // 倍率 1 + combo×0.1，等价于整数分，避免浮点误差被 HUD 向下取整。
-    state.score += Math.min(30, 10 + state.combo);
-  } else {
-    state.combo = 0;
-    state.score += 5;
-  }
+  const score = GameLogic.scoreFor(judgement.status, state.combo);
+  state.combo = score.combo;
+  state.score += score.delta;
+  const perfect = judgement.status === 'perfect';
 
   // 镜头跟随 + 加速
   state.cameraY = Math.max(0, (state.blocks.length - 8) * CONFIG.blockH);
