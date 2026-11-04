@@ -8,6 +8,8 @@
 
 [https://jwillings1221.github.io/night-market-stack/](https://jwillings1221.github.io/night-market-stack/)
 
+当前是 `v1.0-rc.1` 公开试玩候选；收集真人反馈并修复最高优先级问题后，才会发布正式 `v1.0`。
+
 ![扫码试玩](screenshots/play-qr.png)
 
 ## 截图
