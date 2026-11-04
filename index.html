@@ -137,7 +137,6 @@ const CONFIG = {
   perfect: 12,       // 中心偏差 <= 12px 算 perfect
   minOverlap: 10,    // 重叠 < 10px 直接失败
   gap: 80,           // 当前块与牌堆的间距
-  perfectFlashMs: 80,
   failFlashMs: 140,
   shakeLightMs: 120,
   shakeHeavyMs: 220,
@@ -488,7 +487,6 @@ function drop() {
   if (perfect) {
     audio.perfect();
     if (state.combo >= 2) audio.combo(state.combo);
-    triggerFlash('perfect', CONFIG.perfectFlashMs);
     shakeScreen('light', CONFIG.shakeLightMs);
     addParticles(
       effectPoint.x,

@@ -15,7 +15,7 @@
 - 失败：重叠 < 10px
 - 连击：perfect +1，普通归零；倍率 1 + combo×0.1，上限 3
 - 最高分：localStorage
-- 手感：PERFECT 白光 80ms、轻震 120ms、12 个粒子；普通 +5 与 5 个粒子；失败红闪 140ms、重震 220ms、20 个粒子
+- 手感：PERFECT 浮字、轻震 120ms、12 个粒子；普通 +5 与 5 个粒子；失败红闪 140ms、重震 220ms、20 个粒子
 - 音效：WebAudio 合成落下、PERFECT、连击、失败；静音状态存 localStorage，首次用户手势后创建 AudioContext
 
 ## 逻辑模块与测试
