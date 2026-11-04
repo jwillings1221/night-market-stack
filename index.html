@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <link rel="icon" href="data:,">
-<title>夜市叠叠高 v1.0-rc.1</title>
+<title>夜市叠叠高 v1.0-rc.2</title>
 <style>
 
   html, body { position: fixed; inset: 0; margin: 0; height: 100%; background: #12121f;
@@ -145,6 +145,7 @@ const CONFIG = {
   particleNormal: 5,
   particleFail: 20,
   audioVolume: 0.2,
+  musicVolume: 0.65,
 };
 
 // ===== 2. 状态 =====
@@ -195,13 +196,45 @@ function saveMuted(v) {
   try { localStorage.setItem('muted', v ? '1' : '0'); } catch (e) {}
 }
 
+const BGM = {
+  steps: 32,
+  stepSeconds: 60 / 92 / 2,
+  melody: [
+    [0, 587.33, 2, 0.055], [2, 440.00, 1, 0.042],
+    [3, 493.88, 1, 0.046], [4, 587.33, 2, 0.052],
+    [6, 440.00, 2, 0.040], [8, 659.25, 2, 0.050],
+    [10, 587.33, 1, 0.044], [11, 493.88, 1, 0.040],
+    [12, 440.00, 4, 0.046], [16, 493.88, 2, 0.050],
+    [18, 587.33, 1, 0.044], [19, 659.25, 1, 0.046],
+    [20, 587.33, 2, 0.050], [22, 493.88, 2, 0.040],
+    [24, 440.00, 2, 0.045], [26, 493.88, 1, 0.040],
+    [27, 440.00, 1, 0.038], [28, 369.99, 2, 0.040],
+    [30, 329.63, 2, 0.038],
+  ],
+  bass: [
+    [0, 146.83, 4, 0.040], [4, 110.00, 4, 0.036],
+    [8, 123.47, 4, 0.038], [12, 98.00, 4, 0.034],
+    [16, 146.83, 4, 0.040], [20, 110.00, 4, 0.036],
+    [24, 98.00, 4, 0.034], [28, 110.00, 4, 0.036],
+  ],
+  bells: [
+    [4, 1174.66, 1, 0.018], [12, 880.00, 1, 0.016],
+    [20, 1174.66, 1, 0.018], [28, 987.77, 1, 0.016],
+  ],
+};
+
 class AudioEngine {
   constructor() {
     this.ctx = null;
     this.master = null;
     this.compressor = null;
+    this.musicGain = null;
     this.noiseBuffer = null;
     this.muted = loadMuted();
+    this.musicStarted = false;
+    this.musicStep = 0;
+    this.musicNextTime = 0;
+    this.musicTimer = 0;
     this.renderButton();
   }
 
@@ -218,12 +251,16 @@ class AudioEngine {
       this.compressor.release.value = 0.18;
       this.master.connect(this.compressor);
       this.compressor.connect(this.ctx.destination);
+      this.musicGain = this.ctx.createGain();
+      this.musicGain.gain.value = CONFIG.musicVolume;
+      this.musicGain.connect(this.master);
       this.applyVolume(0);
     }
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
     }
     this.applyVolume(0.01);
+    this.startMusic();
   }
 
   applyVolume(seconds) {
@@ -250,7 +287,54 @@ class AudioEngine {
     muteBtn.setAttribute('aria-label', this.muted ? '打开声音' : '关闭声音');
   }
 
-  tone(freq, type, duration, volume, delay = 0, endFreq = freq) {
+  startMusic() {
+    if (!this.ctx || this.musicStarted) return;
+    this.musicStarted = true;
+    this.musicStep = 0;
+    this.musicNextTime = this.ctx.currentTime + 0.08;
+    this.scheduleMusic();
+    this.musicTimer = window.setInterval(() => this.scheduleMusic(), 100);
+  }
+
+  scheduleMusic() {
+    if (!this.ctx || !this.musicGain) return;
+    const now = this.ctx.currentTime;
+    if (this.musicNextTime < now - 0.5) {
+      this.musicNextTime = now + 0.05;
+    }
+    while (this.musicNextTime < now + 0.22) {
+      const step = this.musicStep % BGM.steps;
+      const delay = Math.max(0, this.musicNextTime - now);
+      for (const [at, freq, length, volume] of BGM.melody) {
+        if (at === step) {
+          this.tone(
+            freq, 'square', BGM.stepSeconds * length, volume,
+            delay, freq, this.musicGain,
+          );
+        }
+      }
+      for (const [at, freq, length, volume] of BGM.bass) {
+        if (at === step) {
+          this.tone(
+            freq, 'triangle', BGM.stepSeconds * length, volume,
+            delay, freq, this.musicGain,
+          );
+        }
+      }
+      for (const [at, freq, length, volume] of BGM.bells) {
+        if (at === step) {
+          this.tone(
+            freq, 'sine', BGM.stepSeconds * length, volume,
+            delay, freq, this.musicGain,
+          );
+        }
+      }
+      this.musicStep++;
+      this.musicNextTime += BGM.stepSeconds;
+    }
+  }
+
+  tone(freq, type, duration, volume, delay = 0, endFreq = freq, destination = this.master) {
     if (!this.ctx || this.muted) return;
     const start = this.ctx.currentTime + delay;
     const osc = this.ctx.createOscillator();
@@ -262,7 +346,7 @@ class AudioEngine {
     gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, volume), start + 0.012);
     gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
     osc.connect(gain);
-    gain.connect(this.master);
+    gain.connect(destination);
     osc.start(start);
     osc.stop(start + duration + 0.02);
   }
