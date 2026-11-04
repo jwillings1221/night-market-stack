@@ -20,6 +20,12 @@
 
 ![游戏过程演示](screenshots/demo.gif)
 
+## 项目材料
+
+- [Case Study：项目目标、技术取舍与验证](docs/case-study.md)
+- [Interview Pack：中英简历 bullet、3 分钟陈述与问答](docs/interview-pack.md)
+- [GitHub 源码仓库](https://github.com/jwillings1221/night-market-stack)
+
 ## 本地运行
 
 项目每天更新一个可玩版本，根目录始终是最新版。
