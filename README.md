@@ -2,7 +2,21 @@
 
 一个用原生 JavaScript 与 Canvas 2D 编写的夜市主题叠叠乐。点击或触摸屏幕让小吃落下，叠得越高分越高，对齐得足够准会触发 PERFECT 连击。
 
-当前版本：`v0.4.2`
+当前版本：`v1.0-rc.1`
+
+## 在线试玩
+
+[https://jwillings1221.github.io/night-market-stack/](https://jwillings1221.github.io/night-market-stack/)
+
+![扫码试玩](screenshots/play-qr.png)
+
+## 截图
+
+![桌面游戏画面](screenshots/desktop.png)
+
+![手机游戏画面](screenshots/mobile.png)
+
+![游戏过程演示](screenshots/demo.gif)
 
 ## 本地运行
 
@@ -55,3 +69,11 @@ node tests/smoke.test.js
 - 目前没有排行榜、账号、分享、皮肤或正式 E2E 测试套件。
 
 素材来源见 [`CREDITS.md`](CREDITS.md)。
+
+## License
+
+代码以 [MIT License](LICENSE) 发布。美术与音效来源见 [`CREDITS.md`](CREDITS.md)。
+
+## 免责声明
+
+这是一个原创的休闲叠放游戏原型，只借鉴通用的点击叠放玩法，与 Poki 或任何原游戏没有关联。项目中的图形、文案和音效均由原创代码生成。
